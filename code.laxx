@@ -1,2 +1,6 @@
-print(10 + 20 * 2);
-print(100 / 5);
+dhori x = 10;
+dhori y = 20;
+dekhao(x + y);
+dekhao(y - 5);
+dhori z = x * y;
+dekhao(z);
