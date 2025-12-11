@@ -73,13 +73,12 @@
     #include <stdlib.h>
     #include <string.h>
 
-    // Forward declarations needed for C compiler
     int yylex();
     void yyerror(const char *s);
     extern FILE *yyin;
     extern char *yytext;
 
-#line 83 "stylaxx.tab.c"
+#line 82 "stylaxx.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -116,39 +115,52 @@ enum yysymbol_kind_t
   YYSYMBOL_VARIABLE = 6,                   /* VARIABLE  */
   YYSYMBOL_DEKHAO = 7,                     /* DEKHAO  */
   YYSYMBOL_DHORI = 8,                      /* DHORI  */
-  YYSYMBOL_ASSIGN = 9,                     /* ASSIGN  */
-  YYSYMBOL_PLUS = 10,                      /* PLUS  */
-  YYSYMBOL_MINUS = 11,                     /* MINUS  */
-  YYSYMBOL_MUL = 12,                       /* MUL  */
-  YYSYMBOL_DIV = 13,                       /* DIV  */
-  YYSYMBOL_LPAREN = 14,                    /* LPAREN  */
-  YYSYMBOL_RPAREN = 15,                    /* RPAREN  */
-  YYSYMBOL_SEMICOLON = 16,                 /* SEMICOLON  */
-  YYSYMBOL_YYACCEPT = 17,                  /* $accept  */
-  YYSYMBOL_program = 18,                   /* program  */
-  YYSYMBOL_statement = 19,                 /* statement  */
-  YYSYMBOL_expression = 20                 /* expression  */
+  YYSYMBOL_IF = 9,                         /* IF  */
+  YYSYMBOL_ELSE = 10,                      /* ELSE  */
+  YYSYMBOL_WHILE = 11,                     /* WHILE  */
+  YYSYMBOL_FOR = 12,                       /* FOR  */
+  YYSYMBOL_EQ = 13,                        /* EQ  */
+  YYSYMBOL_NEQ = 14,                       /* NEQ  */
+  YYSYMBOL_GE = 15,                        /* GE  */
+  YYSYMBOL_LE = 16,                        /* LE  */
+  YYSYMBOL_GT = 17,                        /* GT  */
+  YYSYMBOL_LT = 18,                        /* LT  */
+  YYSYMBOL_ASSIGN = 19,                    /* ASSIGN  */
+  YYSYMBOL_PLUS = 20,                      /* PLUS  */
+  YYSYMBOL_MINUS = 21,                     /* MINUS  */
+  YYSYMBOL_MUL = 22,                       /* MUL  */
+  YYSYMBOL_DIV = 23,                       /* DIV  */
+  YYSYMBOL_LPAREN = 24,                    /* LPAREN  */
+  YYSYMBOL_RPAREN = 25,                    /* RPAREN  */
+  YYSYMBOL_LBRACE = 26,                    /* LBRACE  */
+  YYSYMBOL_RBRACE = 27,                    /* RBRACE  */
+  YYSYMBOL_SEMICOLON = 28,                 /* SEMICOLON  */
+  YYSYMBOL_LBRACKET = 29,                  /* LBRACKET  */
+  YYSYMBOL_RBRACKET = 30,                  /* RBRACKET  */
+  YYSYMBOL_YYACCEPT = 31,                  /* $accept  */
+  YYSYMBOL_program = 32,                   /* program  */
+  YYSYMBOL_statement = 33,                 /* statement  */
+  YYSYMBOL_statement_list = 34,            /* statement_list  */
+  YYSYMBOL_expression = 35                 /* expression  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
 
 /* Second part of user prologue.  */
-#line 43 "stylaxx.y"
+#line 63 "stylaxx.y"
 
-    // Symbol Table
     struct Symbol {
         char *name;
         Data data;
     };
-
     struct Symbol table[100];
     int count = 0;
 
-    // Helper: Set Value
-    void set_value(char *name, Data d) {
+    void set_var(char *name, Data d) {
         for(int i=0; i<count; i++) {
             if(strcmp(table[i].name, name) == 0) {
-                table[i].data = d;
+                if(table[i].data.is_array && !d.is_array) { /* protect array type */ }
+                else table[i].data = d;
                 return;
             }
         }
@@ -157,56 +169,157 @@ typedef enum yysymbol_kind_t yysymbol_kind_t;
         count++;
     }
 
-    // Helper: Get Value
-    Data get_value(char *name) {
+    Data get_var(char *name) {
         for(int i=0; i<count; i++) {
-            if(strcmp(table[i].name, name) == 0) {
-                return table[i].data;
-            }
+            if(strcmp(table[i].name, name) == 0) return table[i].data;
         }
-        printf("Error: Variable '%s' not found!\n", name);
-        Data empty = {0, 0, 0.0, NULL};
-        return empty;
+        printf("Runtime Error: Variable '%s' not found.\n", name);
+        return (Data){0};
     }
 
-    // Helper: Calculate Logic
-    Data calculate(Data a, Data b, char op) {
-        Data res;
+    /* --- NODE CREATION --- */
+    Node* makeNum(int v) { Node *p = malloc(sizeof(Node)); p->type=NODE_CONST; p->value.type=0; p->value.i_val=v; return p; }
+    Node* makeFloat(double v) { Node *p = malloc(sizeof(Node)); p->type=NODE_CONST; p->value.type=1; p->value.f_val=v; return p; }
+    Node* makeStr(char *s) { Node *p = malloc(sizeof(Node)); p->type=NODE_CONST; p->value.type=2; p->value.s_val=s; return p; }
+    Node* makeVar(char *n) { Node *p = malloc(sizeof(Node)); p->type=NODE_VAR; p->varName=n; return p; }
+    
+    Node* makeOp(Node *l, Node *r, char op) { 
+        Node *p = malloc(sizeof(Node)); p->type=NODE_OP; p->left=l; p->right=r; p->op=op; return p; 
+    }
+    Node* makeAssign(char *n, Node *expr) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_ASSIGN; p->varName=n; p->left=expr; return p;
+    }
+    Node* makePrint(Node *expr) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_PRINT; p->left=expr; return p;
+    }
+    Node* makeSeq(Node *l, Node *r) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_SEQ; p->left=l; p->right=r; return p;
+    }
+    Node* makeIf(Node *cond, Node *ifB, Node *elseB) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_IF; p->cond=cond; p->body=ifB; p->elseBody=elseB; return p;
+    }
+    Node* makeWhile(Node *cond, Node *body) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_WHILE; p->cond=cond; p->body=body; return p;
+    }
+    
+    /* NEW: FOR LOOP NODE CREATION */
+    Node* makeFor(Node *init, Node *cond, Node *incr, Node *body) {
+        Node *p = malloc(sizeof(Node)); 
+        p->type=NODE_FOR; 
+        p->left=init;    // Initialization (dhori i=0;)
+        p->cond=cond;    // Condition (i<5)
+        p->right=incr;   // Increment (i=i+1;)
+        p->body=body;    // Loop Body
+        return p;
+    }
+
+    Node* makeArrayDecl(char *n, int size) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_ARRAY_DECL; p->varName=n; p->value.i_val=size; return p;
+    }
+    Node* makeArrayAcc(char *n, Node *idx) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_ARRAY_ACCESS; p->varName=n; p->left=idx; return p;
+    }
+    Node* makeArrayAss(char *n, Node *idx, Node *val) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_ARRAY_ASSIGN; p->varName=n; p->left=idx; p->right=val; return p;
+    }
+
+    /* --- EXECUTION ENGINE --- */
+    Data run(Node *p) {
+        if(!p) return (Data){0};
         
-        // String handling restriction
-        if(a.type == 2 || b.type == 2) {
-            printf("Error: Cannot do math with strings!\n");
-            res.type = 0; res.i_val = 0; return res;
-        }
+        switch(p->type) {
+            case NODE_CONST: return p->value;
+            case NODE_VAR:   return get_var(p->varName);
+            
+            case NODE_OP: {
+                Data v1 = run(p->left);
+                Data v2 = run(p->right);
+                Data res = {0};
+                
+                double n1 = (v1.type==1)?v1.f_val:v1.i_val;
+                double n2 = (v2.type==1)?v2.f_val:v2.i_val;
+                int isF = (v1.type==1 || v2.type==1);
+                
+                if(p->op=='+') { if(isF) {res.type=1; res.f_val=n1+n2;} else {res.type=0; res.i_val=(int)n1+(int)n2;} }
+                if(p->op=='-') { if(isF) {res.type=1; res.f_val=n1-n2;} else {res.type=0; res.i_val=(int)n1-(int)n2;} }
+                if(p->op=='*') { if(isF) {res.type=1; res.f_val=n1*n2;} else {res.type=0; res.i_val=(int)n1*(int)n2;} }
+                if(p->op=='/') { if(isF) {res.type=1; res.f_val=n1/n2;} else {res.type=0; res.i_val=(int)n1/(int)n2;} }
+                
+                if(p->op=='g') { res.type=0; res.i_val = (n1 > n2); }
+                if(p->op=='l') { res.type=0; res.i_val = (n1 < n2); }
+                if(p->op=='e') { res.type=0; res.i_val = (n1 == n2); }
+                return res;
+            }
 
-        // Int vs Float Logic
-        if(a.type == 0 && b.type == 0) { // Both INT
-            res.type = 0;
-            if(op == '+') res.i_val = a.i_val + b.i_val;
-            if(op == '-') res.i_val = a.i_val - b.i_val;
-            if(op == '*') res.i_val = a.i_val * b.i_val;
-            if(op == '/') {
-                if(b.i_val == 0) { printf("Error: Div by 0\n"); res.i_val=0; }
-                else res.i_val = a.i_val / b.i_val;
+            case NODE_ASSIGN: {
+                Data v = run(p->left);
+                set_var(p->varName, v);
+                return v;
+            }
+            
+            case NODE_SEQ:
+                run(p->left);
+                run(p->right);
+                return (Data){0};
+
+            case NODE_PRINT: {
+                Data v = run(p->left);
+                if(v.type==0) printf("Output: %d\n", v.i_val);
+                else if(v.type==1) printf("Output: %.2f\n", v.f_val);
+                else if(v.type==2) printf("Output: %s\n", v.s_val);
+                return (Data){0};
+            }
+
+            case NODE_IF:
+                if(run(p->cond).i_val) run(p->body);
+                else if(p->elseBody) run(p->elseBody);
+                return (Data){0};
+
+            case NODE_WHILE:
+                while(run(p->cond).i_val) run(p->body);
+                return (Data){0};
+
+            /* NEW: FOR LOOP EXECUTION */
+            case NODE_FOR:
+                run(p->left);               // 1. Initialization (dhori i=0)
+                while(run(p->cond).i_val) { // 2. Check Condition (i<5)
+                    run(p->body);           // 3. Run Body
+                    run(p->right);          // 4. Increment (i=i+1)
+                }
+                return (Data){0};
+
+            case NODE_ARRAY_DECL: {
+                Data d = {0};
+                d.is_array = 1;
+                d.arr_size = p->value.i_val;
+                d.arr_vals = (int*)calloc(d.arr_size, sizeof(int));
+                set_var(p->varName, d);
+                return (Data){0};
+            }
+            case NODE_ARRAY_ASSIGN: {
+                Data idx = run(p->left);
+                Data val = run(p->right);
+                Data arr = get_var(p->varName);
+                if(arr.is_array && idx.i_val < arr.arr_size) {
+                    arr.arr_vals[idx.i_val] = val.i_val;
+                } 
+                return (Data){0}; 
+            }
+            case NODE_ARRAY_ACCESS: {
+                Data idx = run(p->left);
+                Data arr = get_var(p->varName);
+                Data res = {0};
+                if(arr.is_array && idx.i_val < arr.arr_size) {
+                    res.type = 0;
+                    res.i_val = arr.arr_vals[idx.i_val];
+                }
+                return res;
             }
         }
-        else { // Mixed or Float
-            res.type = 1;
-            double v1 = (a.type == 0) ? (double)a.i_val : a.f_val;
-            double v2 = (b.type == 0) ? (double)b.i_val : b.f_val;
-
-            if(op == '+') res.f_val = v1 + v2;
-            if(op == '-') res.f_val = v1 - v2;
-            if(op == '*') res.f_val = v1 * v2;
-            if(op == '/') {
-                 if(v2 == 0) { printf("Error: Div by 0\n"); res.f_val=0; }
-                 else res.f_val = v1 / v2;
-            }
-        }
-        return res;
+        return (Data){0};
     }
 
-#line 210 "stylaxx.tab.c"
+#line 323 "stylaxx.tab.c"
 
 
 #ifdef short
@@ -530,19 +643,19 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   40
+#define YYLAST   219
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  17
+#define YYNTOKENS  31
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  4
+#define YYNNTS  5
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  14
+#define YYNRULES  27
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  29
+#define YYNSTATES  82
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   271
+#define YYMAXUTOK   285
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -583,15 +696,17 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
-      15,    16
+      15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
+      25,    26,    27,    28,    29,    30
 };
 
 #if YYDEBUG
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
-static const yytype_uint8 yyrline[] =
+static const yytype_int16 yyrline[] =
 {
-       0,   119,   119,   120,   124,   129,   135,   136,   137,   138,
-     140,   141,   142,   143,   145
+       0,   237,   237,   238,   242,   243,   246,   247,   250,   251,
+     252,   256,   261,   265,   266,   270,   271,   272,   273,   274,
+     276,   277,   278,   279,   281,   282,   283,   285
 };
 #endif
 
@@ -608,9 +723,11 @@ static const char *yysymbol_name (yysymbol_kind_t yysymbol) YY_ATTRIBUTE_UNUSED;
 static const char *const yytname[] =
 {
   "\"end of file\"", "error", "\"invalid token\"", "INT_NUM", "FLOAT_NUM",
-  "STRING_LIT", "VARIABLE", "DEKHAO", "DHORI", "ASSIGN", "PLUS", "MINUS",
-  "MUL", "DIV", "LPAREN", "RPAREN", "SEMICOLON", "$accept", "program",
-  "statement", "expression", YY_NULLPTR
+  "STRING_LIT", "VARIABLE", "DEKHAO", "DHORI", "IF", "ELSE", "WHILE",
+  "FOR", "EQ", "NEQ", "GE", "LE", "GT", "LT", "ASSIGN", "PLUS", "MINUS",
+  "MUL", "DIV", "LPAREN", "RPAREN", "LBRACE", "RBRACE", "SEMICOLON",
+  "LBRACKET", "RBRACKET", "$accept", "program", "statement",
+  "statement_list", "expression", YY_NULLPTR
 };
 
 static const char *
@@ -620,7 +737,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-11)
+#define YYPACT_NINF (-28)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -632,11 +749,17 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 
 /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
    STATE-NUM.  */
-static const yytype_int8 yypact[] =
+static const yytype_int16 yypact[] =
 {
-     -11,     5,   -11,   -10,     3,   -11,    -3,    -1,   -11,   -11,
-     -11,   -11,    -3,    19,    -3,    25,    -3,    -3,    -3,    -3,
-       1,    12,   -11,    -6,    -6,   -11,   -11,   -11,   -11
+     -28,   200,   -28,   -18,   -11,    13,    -2,    17,    20,   -28,
+      59,    59,    59,   -15,    59,    59,   207,   -28,   -28,   -28,
+      16,    59,    95,    73,   143,    59,    43,   154,   165,    59,
+      59,   176,    59,    59,    59,    59,    59,    59,    59,   -28,
+      29,    25,   107,    22,    46,    50,   119,    84,   -28,   -13,
+     -13,   -13,    -5,    -5,   -28,   -28,    59,   -28,   -28,    51,
+     207,   207,   207,   -28,   131,   -28,   -28,    24,    31,    55,
+     -28,    71,   -28,   -28,    56,    58,   207,   207,    48,    62,
+     -28,   -28
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -644,21 +767,27 @@ static const yytype_int8 yypact[] =
    means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       2,     0,     1,     0,     0,     3,     0,     0,     6,     7,
-       8,     9,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,    14,    10,    11,    12,    13,     4,     5
+       2,     0,     1,     0,     0,     0,     0,     0,     0,     3,
+       0,     0,     0,     0,     0,     0,     0,    15,    16,    17,
+      18,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,    12,
+       0,     0,     0,     0,     0,     0,     0,     0,    27,    26,
+      24,    25,    20,    21,    22,    23,     0,     4,     5,     0,
+       0,     0,     0,    19,     0,     6,    13,     0,     0,     0,
+       7,     8,    14,    10,     0,     0,     0,     0,     0,     0,
+      11,     9
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -11,   -11,   -11,     2
+     -28,   -28,    -1,   -27,    -9
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     1,     5,    13
+       0,     1,    66,    67,    22
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -666,43 +795,85 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-       8,     9,    10,    11,     6,     2,    18,    19,    14,     7,
-       0,    12,     3,     4,    15,     0,    21,    27,    23,    24,
-      25,    26,    16,    17,    18,    19,     0,     0,    28,    16,
-      17,    18,    19,     0,    20,    16,    17,    18,    19,     0,
-      22
+       9,    10,    23,    24,    25,    27,    28,    35,    36,    37,
+      38,    11,    31,    12,    26,    29,    42,    37,    38,    13,
+      46,    47,    14,    49,    50,    51,    52,    53,    54,    55,
+       3,     4,     5,     6,    68,     7,     8,     3,     4,     5,
+       6,    15,     7,     8,    16,    30,    43,    64,    56,    78,
+      79,    71,    59,    57,     3,     4,     5,     6,    73,     7,
+       8,    69,    17,    18,    19,    20,    72,    72,     3,     4,
+       5,     6,    60,     7,     8,    80,    61,    72,    72,    65,
+      74,    75,    76,    21,    77,     0,    32,     0,     0,    81,
+      33,    34,     0,    35,    36,    37,    38,    32,     0,     0,
+       0,    33,    34,    40,    35,    36,    37,    38,    32,     0,
+       0,     0,    33,    34,    63,    35,    36,    37,    38,     0,
+      32,     0,     0,    39,    33,    34,     0,    35,    36,    37,
+      38,     0,    32,     0,     0,    58,    33,    34,     0,    35,
+      36,    37,    38,     0,    32,     0,     0,    62,    33,    34,
+       0,    35,    36,    37,    38,     0,    32,     0,     0,    70,
+      33,    34,     0,    35,    36,    37,    38,    32,    41,     0,
+       0,    33,    34,     0,    35,    36,    37,    38,    32,    44,
+       0,     0,    33,    34,     0,    35,    36,    37,    38,    32,
+      45,     0,     0,    33,    34,     0,    35,    36,    37,    38,
+       2,    48,     0,     0,     0,     0,     3,     4,     5,     6,
+       0,     7,     8,     3,     4,     5,     6,     0,     7,     8
 };
 
 static const yytype_int8 yycheck[] =
 {
-       3,     4,     5,     6,    14,     0,    12,    13,     9,     6,
-      -1,    14,     7,     8,    12,    -1,    14,    16,    16,    17,
-      18,    19,    10,    11,    12,    13,    -1,    -1,    16,    10,
-      11,    12,    13,    -1,    15,    10,    11,    12,    13,    -1,
-      15
+       1,    19,    11,    12,    19,    14,    15,    20,    21,    22,
+      23,    29,    21,    24,    29,    16,    25,    22,    23,     6,
+      29,    30,    24,    32,    33,    34,    35,    36,    37,    38,
+       6,     7,     8,     9,    61,    11,    12,     6,     7,     8,
+       9,    24,    11,    12,    24,    29,     3,    56,    19,    76,
+      77,    27,    30,    28,     6,     7,     8,     9,    27,    11,
+      12,    62,     3,     4,     5,     6,    67,    68,     6,     7,
+       8,     9,    26,    11,    12,    27,    26,    78,    79,    28,
+      25,    10,    26,    24,    26,    -1,    13,    -1,    -1,    27,
+      17,    18,    -1,    20,    21,    22,    23,    13,    -1,    -1,
+      -1,    17,    18,    30,    20,    21,    22,    23,    13,    -1,
+      -1,    -1,    17,    18,    30,    20,    21,    22,    23,    -1,
+      13,    -1,    -1,    28,    17,    18,    -1,    20,    21,    22,
+      23,    -1,    13,    -1,    -1,    28,    17,    18,    -1,    20,
+      21,    22,    23,    -1,    13,    -1,    -1,    28,    17,    18,
+      -1,    20,    21,    22,    23,    -1,    13,    -1,    -1,    28,
+      17,    18,    -1,    20,    21,    22,    23,    13,    25,    -1,
+      -1,    17,    18,    -1,    20,    21,    22,    23,    13,    25,
+      -1,    -1,    17,    18,    -1,    20,    21,    22,    23,    13,
+      25,    -1,    -1,    17,    18,    -1,    20,    21,    22,    23,
+       0,    25,    -1,    -1,    -1,    -1,     6,     7,     8,     9,
+      -1,    11,    12,     6,     7,     8,     9,    -1,    11,    12
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
    state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,    18,     0,     7,     8,    19,    14,     6,     3,     4,
-       5,     6,    14,    20,     9,    20,    10,    11,    12,    13,
-      15,    20,    15,    20,    20,    20,    20,    16,    16
+       0,    32,     0,     6,     7,     8,     9,    11,    12,    33,
+      19,    29,    24,     6,    24,    24,    24,     3,     4,     5,
+       6,    24,    35,    35,    35,    19,    29,    35,    35,    33,
+      29,    35,    13,    17,    18,    20,    21,    22,    23,    28,
+      30,    25,    35,     3,    25,    25,    35,    35,    25,    35,
+      35,    35,    35,    35,    35,    35,    19,    28,    28,    30,
+      26,    26,    28,    30,    35,    28,    33,    34,    34,    33,
+      28,    27,    33,    27,    25,    10,    26,    26,    34,    34,
+      27,    27
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    17,    18,    18,    19,    19,    20,    20,    20,    20,
-      20,    20,    20,    20,    20
+       0,    31,    32,    32,    33,    33,    33,    33,    33,    33,
+      33,    33,    33,    34,    34,    35,    35,    35,    35,    35,
+      35,    35,    35,    35,    35,    35,    35,    35
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     0,     2,     5,     5,     1,     1,     1,     1,
-       3,     3,     3,     3,     3
+       0,     2,     0,     2,     5,     5,     6,     7,     7,    11,
+       7,    10,     4,     1,     2,     1,     1,     1,     1,     4,
+       3,     3,     3,     3,     3,     3,     3,     3
 };
 
 
@@ -1165,80 +1336,160 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
+  case 3: /* program: program statement  */
+#line 238 "stylaxx.y"
+                        { run((yyvsp[0].nodePtr)); }
+#line 1343 "stylaxx.tab.c"
+    break;
+
   case 4: /* statement: DEKHAO LPAREN expression RPAREN SEMICOLON  */
-#line 124 "stylaxx.y"
-                                              {
-        if ((yyvsp[-2].dataVal).type == 0) printf("Output (Int): %d\n", (yyvsp[-2].dataVal).i_val);
-        else if ((yyvsp[-2].dataVal).type == 1) printf("Output (Float): %.2f\n", (yyvsp[-2].dataVal).f_val);
-        else if ((yyvsp[-2].dataVal).type == 2) printf("Output (Text): %s\n", (yyvsp[-2].dataVal).s_val);
-    }
-#line 1176 "stylaxx.tab.c"
+#line 242 "stylaxx.y"
+                                              { (yyval.nodePtr) = makePrint((yyvsp[-2].nodePtr)); }
+#line 1349 "stylaxx.tab.c"
     break;
 
   case 5: /* statement: DHORI VARIABLE ASSIGN expression SEMICOLON  */
-#line 129 "stylaxx.y"
-                                                 {
-        set_value((yyvsp[-3].strVal), (yyvsp[-1].dataVal));
+#line 243 "stylaxx.y"
+                                                 { (yyval.nodePtr) = makeAssign((yyvsp[-3].strVal), (yyvsp[-1].nodePtr)); }
+#line 1355 "stylaxx.tab.c"
+    break;
+
+  case 6: /* statement: DHORI VARIABLE LBRACKET INT_NUM RBRACKET SEMICOLON  */
+#line 246 "stylaxx.y"
+                                                         { (yyval.nodePtr) = makeArrayDecl((yyvsp[-4].strVal), (yyvsp[-2].intVal)); }
+#line 1361 "stylaxx.tab.c"
+    break;
+
+  case 7: /* statement: VARIABLE LBRACKET expression RBRACKET ASSIGN expression SEMICOLON  */
+#line 247 "stylaxx.y"
+                                                                        { (yyval.nodePtr) = makeArrayAss((yyvsp[-6].strVal), (yyvsp[-4].nodePtr), (yyvsp[-1].nodePtr)); }
+#line 1367 "stylaxx.tab.c"
+    break;
+
+  case 8: /* statement: IF LPAREN expression RPAREN LBRACE statement_list RBRACE  */
+#line 250 "stylaxx.y"
+                                                               { (yyval.nodePtr) = makeIf((yyvsp[-4].nodePtr), (yyvsp[-1].nodePtr), NULL); }
+#line 1373 "stylaxx.tab.c"
+    break;
+
+  case 9: /* statement: IF LPAREN expression RPAREN LBRACE statement_list RBRACE ELSE LBRACE statement_list RBRACE  */
+#line 251 "stylaxx.y"
+                                                                                                 { (yyval.nodePtr) = makeIf((yyvsp[-8].nodePtr), (yyvsp[-5].nodePtr), (yyvsp[-1].nodePtr)); }
+#line 1379 "stylaxx.tab.c"
+    break;
+
+  case 10: /* statement: WHILE LPAREN expression RPAREN LBRACE statement_list RBRACE  */
+#line 252 "stylaxx.y"
+                                                                  { (yyval.nodePtr) = makeWhile((yyvsp[-4].nodePtr), (yyvsp[-1].nodePtr)); }
+#line 1385 "stylaxx.tab.c"
+    break;
+
+  case 11: /* statement: FOR LPAREN statement expression SEMICOLON statement RPAREN LBRACE statement_list RBRACE  */
+#line 256 "stylaxx.y"
+                                                                                              { 
+        (yyval.nodePtr) = makeFor((yyvsp[-7].nodePtr), (yyvsp[-6].nodePtr), (yyvsp[-4].nodePtr), (yyvsp[-1].nodePtr)); 
     }
-#line 1184 "stylaxx.tab.c"
+#line 1393 "stylaxx.tab.c"
     break;
 
-  case 6: /* expression: INT_NUM  */
-#line 135 "stylaxx.y"
-                            { (yyval.dataVal).type = 0; (yyval.dataVal).i_val = (yyvsp[0].intVal); }
-#line 1190 "stylaxx.tab.c"
+  case 12: /* statement: VARIABLE ASSIGN expression SEMICOLON  */
+#line 261 "stylaxx.y"
+                                           { (yyval.nodePtr) = makeAssign((yyvsp[-3].strVal), (yyvsp[-1].nodePtr)); }
+#line 1399 "stylaxx.tab.c"
     break;
 
-  case 7: /* expression: FLOAT_NUM  */
-#line 136 "stylaxx.y"
-                            { (yyval.dataVal).type = 1; (yyval.dataVal).f_val = (yyvsp[0].floatVal); }
-#line 1196 "stylaxx.tab.c"
+  case 13: /* statement_list: statement  */
+#line 265 "stylaxx.y"
+              { (yyval.nodePtr) = (yyvsp[0].nodePtr); }
+#line 1405 "stylaxx.tab.c"
     break;
 
-  case 8: /* expression: STRING_LIT  */
-#line 137 "stylaxx.y"
-                            { (yyval.dataVal).type = 2; (yyval.dataVal).s_val = (yyvsp[0].strVal); }
-#line 1202 "stylaxx.tab.c"
+  case 14: /* statement_list: statement_list statement  */
+#line 266 "stylaxx.y"
+                               { (yyval.nodePtr) = makeSeq((yyvsp[-1].nodePtr), (yyvsp[0].nodePtr)); }
+#line 1411 "stylaxx.tab.c"
     break;
 
-  case 9: /* expression: VARIABLE  */
-#line 138 "stylaxx.y"
-                            { (yyval.dataVal) = get_value((yyvsp[0].strVal)); }
-#line 1208 "stylaxx.tab.c"
+  case 15: /* expression: INT_NUM  */
+#line 270 "stylaxx.y"
+                            { (yyval.nodePtr) = makeNum((yyvsp[0].intVal)); }
+#line 1417 "stylaxx.tab.c"
     break;
 
-  case 10: /* expression: expression PLUS expression  */
-#line 140 "stylaxx.y"
-                                  { (yyval.dataVal) = calculate((yyvsp[-2].dataVal), (yyvsp[0].dataVal), '+'); }
-#line 1214 "stylaxx.tab.c"
+  case 16: /* expression: FLOAT_NUM  */
+#line 271 "stylaxx.y"
+                            { (yyval.nodePtr) = makeFloat((yyvsp[0].floatVal)); }
+#line 1423 "stylaxx.tab.c"
     break;
 
-  case 11: /* expression: expression MINUS expression  */
-#line 141 "stylaxx.y"
-                                  { (yyval.dataVal) = calculate((yyvsp[-2].dataVal), (yyvsp[0].dataVal), '-'); }
-#line 1220 "stylaxx.tab.c"
+  case 17: /* expression: STRING_LIT  */
+#line 272 "stylaxx.y"
+                            { (yyval.nodePtr) = makeStr((yyvsp[0].strVal)); }
+#line 1429 "stylaxx.tab.c"
     break;
 
-  case 12: /* expression: expression MUL expression  */
-#line 142 "stylaxx.y"
-                                  { (yyval.dataVal) = calculate((yyvsp[-2].dataVal), (yyvsp[0].dataVal), '*'); }
-#line 1226 "stylaxx.tab.c"
+  case 18: /* expression: VARIABLE  */
+#line 273 "stylaxx.y"
+                            { (yyval.nodePtr) = makeVar((yyvsp[0].strVal)); }
+#line 1435 "stylaxx.tab.c"
     break;
 
-  case 13: /* expression: expression DIV expression  */
-#line 143 "stylaxx.y"
-                                  { (yyval.dataVal) = calculate((yyvsp[-2].dataVal), (yyvsp[0].dataVal), '/'); }
-#line 1232 "stylaxx.tab.c"
+  case 19: /* expression: VARIABLE LBRACKET expression RBRACKET  */
+#line 274 "stylaxx.y"
+                                            { (yyval.nodePtr) = makeArrayAcc((yyvsp[-3].strVal), (yyvsp[-1].nodePtr)); }
+#line 1441 "stylaxx.tab.c"
     break;
 
-  case 14: /* expression: LPAREN expression RPAREN  */
-#line 145 "stylaxx.y"
-                                  { (yyval.dataVal) = (yyvsp[-1].dataVal); }
-#line 1238 "stylaxx.tab.c"
+  case 20: /* expression: expression PLUS expression  */
+#line 276 "stylaxx.y"
+                                  { (yyval.nodePtr) = makeOp((yyvsp[-2].nodePtr), (yyvsp[0].nodePtr), '+'); }
+#line 1447 "stylaxx.tab.c"
+    break;
+
+  case 21: /* expression: expression MINUS expression  */
+#line 277 "stylaxx.y"
+                                  { (yyval.nodePtr) = makeOp((yyvsp[-2].nodePtr), (yyvsp[0].nodePtr), '-'); }
+#line 1453 "stylaxx.tab.c"
+    break;
+
+  case 22: /* expression: expression MUL expression  */
+#line 278 "stylaxx.y"
+                                  { (yyval.nodePtr) = makeOp((yyvsp[-2].nodePtr), (yyvsp[0].nodePtr), '*'); }
+#line 1459 "stylaxx.tab.c"
+    break;
+
+  case 23: /* expression: expression DIV expression  */
+#line 279 "stylaxx.y"
+                                  { (yyval.nodePtr) = makeOp((yyvsp[-2].nodePtr), (yyvsp[0].nodePtr), '/'); }
+#line 1465 "stylaxx.tab.c"
+    break;
+
+  case 24: /* expression: expression GT expression  */
+#line 281 "stylaxx.y"
+                                  { (yyval.nodePtr) = makeOp((yyvsp[-2].nodePtr), (yyvsp[0].nodePtr), 'g'); }
+#line 1471 "stylaxx.tab.c"
+    break;
+
+  case 25: /* expression: expression LT expression  */
+#line 282 "stylaxx.y"
+                                  { (yyval.nodePtr) = makeOp((yyvsp[-2].nodePtr), (yyvsp[0].nodePtr), 'l'); }
+#line 1477 "stylaxx.tab.c"
+    break;
+
+  case 26: /* expression: expression EQ expression  */
+#line 283 "stylaxx.y"
+                                  { (yyval.nodePtr) = makeOp((yyvsp[-2].nodePtr), (yyvsp[0].nodePtr), 'e'); }
+#line 1483 "stylaxx.tab.c"
+    break;
+
+  case 27: /* expression: LPAREN expression RPAREN  */
+#line 285 "stylaxx.y"
+                                  { (yyval.nodePtr) = (yyvsp[-1].nodePtr); }
+#line 1489 "stylaxx.tab.c"
     break;
 
 
-#line 1242 "stylaxx.tab.c"
+#line 1493 "stylaxx.tab.c"
 
       default: break;
     }
@@ -1431,26 +1682,13 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 148 "stylaxx.y"
+#line 288 "stylaxx.y"
 
 
-/* --- PART 6: Main Function --- */
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <filename.laxx>\n", argv[0]);
-        return 1;
-    }
-    FILE *myfile = fopen(argv[1], "r");
-    if (!myfile) {
-        printf("Error opening file.\n");
-        return 1;
-    }
-    yyin = myfile;
+    if (argc < 2) { printf("Usage: %s <file>\n", argv[0]); return 1; }
+    yyin = fopen(argv[1], "r");
     yyparse();
-    fclose(myfile);
     return 0;
 }
-
-void yyerror(const char *s) {
-    fprintf(stderr, "Error: %s at token '%s'\n", s, yytext);
-}
+void yyerror(const char *s) { fprintf(stderr, "Error: %s near '%s'\n", s, yytext); }

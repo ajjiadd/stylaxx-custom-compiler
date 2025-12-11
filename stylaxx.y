@@ -3,58 +3,76 @@
     #include <stdlib.h>
     #include <string.h>
 
-    // Forward declarations needed for C compiler
     int yylex();
     void yyerror(const char *s);
     extern FILE *yyin;
     extern char *yytext;
 %}
 
-/* --- PART 1: Data Structure Definition (MUST BE HERE) --- */
+/* --- DATA STRUCTURES --- */
 %code requires {
     typedef struct {
         int type;       // 0=INT, 1=FLOAT, 2=STRING
         int i_val;
         double f_val;
         char *s_val;
+        int is_array;
+        int *arr_vals;
+        int arr_size;
     } Data;
+
+    typedef enum { 
+        NODE_CONST, NODE_VAR, NODE_OP, NODE_ASSIGN, 
+        NODE_IF, NODE_WHILE, NODE_FOR, NODE_SEQ, NODE_PRINT,
+        NODE_ARRAY_DECL, NODE_ARRAY_ASSIGN, NODE_ARRAY_ACCESS
+    } NodeType;
+
+    typedef struct Node {
+        NodeType type;
+        Data value;             
+        char *varName;          
+        char op;                
+        struct Node *left;      // Used for Init in For Loop
+        struct Node *right;     // Used for Increment in For Loop
+        struct Node *cond;      // Condition
+        struct Node *body;      // Body
+        struct Node *elseBody;  
+    } Node;
 }
 
-/* --- PART 2: Union Definition --- */
 %union {
     int intVal;
     double floatVal;
     char *strVal;
-    Data dataVal;   // Uses Data defined above
+    Node *nodePtr;
 }
 
-/* --- PART 3: Token Declarations --- */
 %token <intVal> INT_NUM
 %token <floatVal> FLOAT_NUM
 %token <strVal> STRING_LIT VARIABLE
-%token DEKHAO DHORI ASSIGN PLUS MINUS MUL DIV LPAREN RPAREN SEMICOLON
+%token DEKHAO DHORI IF ELSE WHILE FOR
+%token EQ NEQ GE LE GT LT ASSIGN PLUS MINUS MUL DIV 
+%token LPAREN RPAREN LBRACE RBRACE SEMICOLON LBRACKET RBRACKET
 
-%type <dataVal> expression
+%type <nodePtr> program statement expression statement_list
 
+%left EQ NEQ GE LE GT LT
 %left PLUS MINUS
 %left MUL DIV
 
-/* --- PART 4: C Code & Helper Functions --- */
 %{
-    // Symbol Table
     struct Symbol {
         char *name;
         Data data;
     };
-
     struct Symbol table[100];
     int count = 0;
 
-    // Helper: Set Value
-    void set_value(char *name, Data d) {
+    void set_var(char *name, Data d) {
         for(int i=0; i<count; i++) {
             if(strcmp(table[i].name, name) == 0) {
-                table[i].data = d;
+                if(table[i].data.is_array && !d.is_array) { /* protect array type */ }
+                else table[i].data = d;
                 return;
             }
         }
@@ -63,107 +81,216 @@
         count++;
     }
 
-    // Helper: Get Value
-    Data get_value(char *name) {
+    Data get_var(char *name) {
         for(int i=0; i<count; i++) {
-            if(strcmp(table[i].name, name) == 0) {
-                return table[i].data;
-            }
+            if(strcmp(table[i].name, name) == 0) return table[i].data;
         }
-        printf("Error: Variable '%s' not found!\n", name);
-        Data empty = {0, 0, 0.0, NULL};
-        return empty;
+        printf("Runtime Error: Variable '%s' not found.\n", name);
+        return (Data){0};
     }
 
-    // Helper: Calculate Logic
-    Data calculate(Data a, Data b, char op) {
-        Data res;
+    /* --- NODE CREATION --- */
+    Node* makeNum(int v) { Node *p = malloc(sizeof(Node)); p->type=NODE_CONST; p->value.type=0; p->value.i_val=v; return p; }
+    Node* makeFloat(double v) { Node *p = malloc(sizeof(Node)); p->type=NODE_CONST; p->value.type=1; p->value.f_val=v; return p; }
+    Node* makeStr(char *s) { Node *p = malloc(sizeof(Node)); p->type=NODE_CONST; p->value.type=2; p->value.s_val=s; return p; }
+    Node* makeVar(char *n) { Node *p = malloc(sizeof(Node)); p->type=NODE_VAR; p->varName=n; return p; }
+    
+    Node* makeOp(Node *l, Node *r, char op) { 
+        Node *p = malloc(sizeof(Node)); p->type=NODE_OP; p->left=l; p->right=r; p->op=op; return p; 
+    }
+    Node* makeAssign(char *n, Node *expr) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_ASSIGN; p->varName=n; p->left=expr; return p;
+    }
+    Node* makePrint(Node *expr) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_PRINT; p->left=expr; return p;
+    }
+    Node* makeSeq(Node *l, Node *r) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_SEQ; p->left=l; p->right=r; return p;
+    }
+    Node* makeIf(Node *cond, Node *ifB, Node *elseB) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_IF; p->cond=cond; p->body=ifB; p->elseBody=elseB; return p;
+    }
+    Node* makeWhile(Node *cond, Node *body) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_WHILE; p->cond=cond; p->body=body; return p;
+    }
+    
+    /* NEW: FOR LOOP NODE CREATION */
+    Node* makeFor(Node *init, Node *cond, Node *incr, Node *body) {
+        Node *p = malloc(sizeof(Node)); 
+        p->type=NODE_FOR; 
+        p->left=init;    // Initialization (dhori i=0;)
+        p->cond=cond;    // Condition (i<5)
+        p->right=incr;   // Increment (i=i+1;)
+        p->body=body;    // Loop Body
+        return p;
+    }
+
+    Node* makeArrayDecl(char *n, int size) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_ARRAY_DECL; p->varName=n; p->value.i_val=size; return p;
+    }
+    Node* makeArrayAcc(char *n, Node *idx) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_ARRAY_ACCESS; p->varName=n; p->left=idx; return p;
+    }
+    Node* makeArrayAss(char *n, Node *idx, Node *val) {
+        Node *p = malloc(sizeof(Node)); p->type=NODE_ARRAY_ASSIGN; p->varName=n; p->left=idx; p->right=val; return p;
+    }
+
+    /* --- EXECUTION ENGINE --- */
+    Data run(Node *p) {
+        if(!p) return (Data){0};
         
-        // String handling restriction
-        if(a.type == 2 || b.type == 2) {
-            printf("Error: Cannot do math with strings!\n");
-            res.type = 0; res.i_val = 0; return res;
-        }
+        switch(p->type) {
+            case NODE_CONST: return p->value;
+            case NODE_VAR:   return get_var(p->varName);
+            
+            case NODE_OP: {
+                Data v1 = run(p->left);
+                Data v2 = run(p->right);
+                Data res = {0};
+                
+                double n1 = (v1.type==1)?v1.f_val:v1.i_val;
+                double n2 = (v2.type==1)?v2.f_val:v2.i_val;
+                int isF = (v1.type==1 || v2.type==1);
+                
+                if(p->op=='+') { if(isF) {res.type=1; res.f_val=n1+n2;} else {res.type=0; res.i_val=(int)n1+(int)n2;} }
+                if(p->op=='-') { if(isF) {res.type=1; res.f_val=n1-n2;} else {res.type=0; res.i_val=(int)n1-(int)n2;} }
+                if(p->op=='*') { if(isF) {res.type=1; res.f_val=n1*n2;} else {res.type=0; res.i_val=(int)n1*(int)n2;} }
+                if(p->op=='/') { if(isF) {res.type=1; res.f_val=n1/n2;} else {res.type=0; res.i_val=(int)n1/(int)n2;} }
+                
+                if(p->op=='g') { res.type=0; res.i_val = (n1 > n2); }
+                if(p->op=='l') { res.type=0; res.i_val = (n1 < n2); }
+                if(p->op=='e') { res.type=0; res.i_val = (n1 == n2); }
+                return res;
+            }
 
-        // Int vs Float Logic
-        if(a.type == 0 && b.type == 0) { // Both INT
-            res.type = 0;
-            if(op == '+') res.i_val = a.i_val + b.i_val;
-            if(op == '-') res.i_val = a.i_val - b.i_val;
-            if(op == '*') res.i_val = a.i_val * b.i_val;
-            if(op == '/') {
-                if(b.i_val == 0) { printf("Error: Div by 0\n"); res.i_val=0; }
-                else res.i_val = a.i_val / b.i_val;
+            case NODE_ASSIGN: {
+                Data v = run(p->left);
+                set_var(p->varName, v);
+                return v;
+            }
+            
+            case NODE_SEQ:
+                run(p->left);
+                run(p->right);
+                return (Data){0};
+
+            case NODE_PRINT: {
+                Data v = run(p->left);
+                if(v.type==0) printf("Output: %d\n", v.i_val);
+                else if(v.type==1) printf("Output: %.2f\n", v.f_val);
+                else if(v.type==2) printf("Output: %s\n", v.s_val);
+                return (Data){0};
+            }
+
+            case NODE_IF:
+                if(run(p->cond).i_val) run(p->body);
+                else if(p->elseBody) run(p->elseBody);
+                return (Data){0};
+
+            case NODE_WHILE:
+                while(run(p->cond).i_val) run(p->body);
+                return (Data){0};
+
+            /* NEW: FOR LOOP EXECUTION */
+            case NODE_FOR:
+                run(p->left);               // 1. Initialization (dhori i=0)
+                while(run(p->cond).i_val) { // 2. Check Condition (i<5)
+                    run(p->body);           // 3. Run Body
+                    run(p->right);          // 4. Increment (i=i+1)
+                }
+                return (Data){0};
+
+            case NODE_ARRAY_DECL: {
+                Data d = {0};
+                d.is_array = 1;
+                d.arr_size = p->value.i_val;
+                d.arr_vals = (int*)calloc(d.arr_size, sizeof(int));
+                set_var(p->varName, d);
+                return (Data){0};
+            }
+            case NODE_ARRAY_ASSIGN: {
+                Data idx = run(p->left);
+                Data val = run(p->right);
+                Data arr = get_var(p->varName);
+                if(arr.is_array && idx.i_val < arr.arr_size) {
+                    arr.arr_vals[idx.i_val] = val.i_val;
+                } 
+                return (Data){0}; 
+            }
+            case NODE_ARRAY_ACCESS: {
+                Data idx = run(p->left);
+                Data arr = get_var(p->varName);
+                Data res = {0};
+                if(arr.is_array && idx.i_val < arr.arr_size) {
+                    res.type = 0;
+                    res.i_val = arr.arr_vals[idx.i_val];
+                }
+                return res;
             }
         }
-        else { // Mixed or Float
-            res.type = 1;
-            double v1 = (a.type == 0) ? (double)a.i_val : a.f_val;
-            double v2 = (b.type == 0) ? (double)b.i_val : b.f_val;
-
-            if(op == '+') res.f_val = v1 + v2;
-            if(op == '-') res.f_val = v1 - v2;
-            if(op == '*') res.f_val = v1 * v2;
-            if(op == '/') {
-                 if(v2 == 0) { printf("Error: Div by 0\n"); res.f_val=0; }
-                 else res.f_val = v1 / v2;
-            }
-        }
-        return res;
+        return (Data){0};
     }
 %}
 
 %%
 
-/* --- PART 5: Grammar Rules --- */
 program:
-    | program statement
+    | program statement { run($2); }
     ;
 
 statement:
-    DEKHAO LPAREN expression RPAREN SEMICOLON {
-        if ($3.type == 0) printf("Output (Int): %d\n", $3.i_val);
-        else if ($3.type == 1) printf("Output (Float): %.2f\n", $3.f_val);
-        else if ($3.type == 2) printf("Output (Text): %s\n", $3.s_val);
+    DEKHAO LPAREN expression RPAREN SEMICOLON { $$ = makePrint($3); }
+    | DHORI VARIABLE ASSIGN expression SEMICOLON { $$ = makeAssign($2, $4); }
+    
+    /* Array Ops */
+    | DHORI VARIABLE LBRACKET INT_NUM RBRACKET SEMICOLON { $$ = makeArrayDecl($2, $4); }
+    | VARIABLE LBRACKET expression RBRACKET ASSIGN expression SEMICOLON { $$ = makeArrayAss($1, $3, $6); }
+    
+    /* Control Flow */
+    | IF LPAREN expression RPAREN LBRACE statement_list RBRACE { $$ = makeIf($3, $6, NULL); }
+    | IF LPAREN expression RPAREN LBRACE statement_list RBRACE ELSE LBRACE statement_list RBRACE { $$ = makeIf($3, $6, $10); }
+    | WHILE LPAREN expression RPAREN LBRACE statement_list RBRACE { $$ = makeWhile($3, $6); }
+    
+    /* NEW: FOR LOOP GRAMMAR */
+    /* ghuro (dhori i=0; i<5; i=i+1;) { ... } */
+    | FOR LPAREN statement expression SEMICOLON statement RPAREN LBRACE statement_list RBRACE { 
+        $$ = makeFor($3, $4, $6, $9); 
     }
-    | DHORI VARIABLE ASSIGN expression SEMICOLON {
-        set_value($2, $4);
-    }
+    
+    /* For simple assignment inside loop increment (e.g. i=i+1;) */
+    | VARIABLE ASSIGN expression SEMICOLON { $$ = makeAssign($1, $3); }
+    ;
+
+statement_list:
+    statement { $$ = $1; }
+    | statement_list statement { $$ = makeSeq($1, $2); }
     ;
 
 expression:
-    INT_NUM                 { $$.type = 0; $$.i_val = $1; }
-    | FLOAT_NUM             { $$.type = 1; $$.f_val = $1; }
-    | STRING_LIT            { $$.type = 2; $$.s_val = $1; }
-    | VARIABLE              { $$ = get_value($1); }
+    INT_NUM                 { $$ = makeNum($1); }
+    | FLOAT_NUM             { $$ = makeFloat($1); }
+    | STRING_LIT            { $$ = makeStr($1); }
+    | VARIABLE              { $$ = makeVar($1); }
+    | VARIABLE LBRACKET expression RBRACKET { $$ = makeArrayAcc($1, $3); }
     
-    | expression PLUS expression  { $$ = calculate($1, $3, '+'); }
-    | expression MINUS expression { $$ = calculate($1, $3, '-'); }
-    | expression MUL expression   { $$ = calculate($1, $3, '*'); }
-    | expression DIV expression   { $$ = calculate($1, $3, '/'); }
+    | expression PLUS expression  { $$ = makeOp($1, $3, '+'); }
+    | expression MINUS expression { $$ = makeOp($1, $3, '-'); }
+    | expression MUL expression   { $$ = makeOp($1, $3, '*'); }
+    | expression DIV expression   { $$ = makeOp($1, $3, '/'); }
+    
+    | expression GT expression    { $$ = makeOp($1, $3, 'g'); }
+    | expression LT expression    { $$ = makeOp($1, $3, 'l'); }
+    | expression EQ expression    { $$ = makeOp($1, $3, 'e'); }
     
     | LPAREN expression RPAREN    { $$ = $2; }
     ;
 
 %%
 
-/* --- PART 6: Main Function --- */
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <filename.laxx>\n", argv[0]);
-        return 1;
-    }
-    FILE *myfile = fopen(argv[1], "r");
-    if (!myfile) {
-        printf("Error opening file.\n");
-        return 1;
-    }
-    yyin = myfile;
+    if (argc < 2) { printf("Usage: %s <file>\n", argv[0]); return 1; }
+    yyin = fopen(argv[1], "r");
     yyparse();
-    fclose(myfile);
     return 0;
 }
-
-void yyerror(const char *s) {
-    fprintf(stderr, "Error: %s at token '%s'\n", s, yytext);
-}
+void yyerror(const char *s) { fprintf(stderr, "Error: %s near '%s'\n", s, yytext); }

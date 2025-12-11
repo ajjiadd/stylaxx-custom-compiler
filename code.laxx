@@ -24,3 +24,37 @@ dhori b = 5.5;
 dhori txt = "Hello World";
 dekhao(a + b);
 dekhao(txt);
+
+dhori bar = "----------------------------------";
+dekhao(bar);
+
+dhori p = 10;
+dhori q = 20;
+
+jodi (p < q) {
+    dekhao("P is smaller than Q");
+} nahole {
+    dekhao("Q is bigger");
+}
+
+dhori i = 0;
+jotokhon (i < 3) {
+    dekhao(i);
+    dhori i = i + 1;
+}
+
+dhori myArray[5];
+myArray[0] = 100;
+myArray[1] = 200;
+
+dhori val = myArray[0] + myArray[1];
+dekhao("Array Sum:");
+dekhao(val);
+
+dekhao("--- For Loop Test ---");
+
+ghuro (dhori i = 1; i < 6; i = i + 1;) {
+    dekhao(i);
+}
+
+dekhao("--- Done ---");

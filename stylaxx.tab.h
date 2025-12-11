@@ -45,16 +45,37 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 14 "stylaxx.y"
+#line 13 "stylaxx.y"
 
     typedef struct {
         int type;       // 0=INT, 1=FLOAT, 2=STRING
         int i_val;
         double f_val;
         char *s_val;
+        int is_array;
+        int *arr_vals;
+        int arr_size;
     } Data;
 
-#line 58 "stylaxx.tab.h"
+    typedef enum { 
+        NODE_CONST, NODE_VAR, NODE_OP, NODE_ASSIGN, 
+        NODE_IF, NODE_WHILE, NODE_FOR, NODE_SEQ, NODE_PRINT,
+        NODE_ARRAY_DECL, NODE_ARRAY_ASSIGN, NODE_ARRAY_ACCESS
+    } NodeType;
+
+    typedef struct Node {
+        NodeType type;
+        Data value;             
+        char *varName;          
+        char op;                
+        struct Node *left;      // Used for Init in For Loop
+        struct Node *right;     // Used for Increment in For Loop
+        struct Node *cond;      // Condition
+        struct Node *body;      // Body
+        struct Node *elseBody;  
+    } Node;
+
+#line 79 "stylaxx.tab.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -71,14 +92,28 @@ extern int yydebug;
     VARIABLE = 261,                /* VARIABLE  */
     DEKHAO = 262,                  /* DEKHAO  */
     DHORI = 263,                   /* DHORI  */
-    ASSIGN = 264,                  /* ASSIGN  */
-    PLUS = 265,                    /* PLUS  */
-    MINUS = 266,                   /* MINUS  */
-    MUL = 267,                     /* MUL  */
-    DIV = 268,                     /* DIV  */
-    LPAREN = 269,                  /* LPAREN  */
-    RPAREN = 270,                  /* RPAREN  */
-    SEMICOLON = 271                /* SEMICOLON  */
+    IF = 264,                      /* IF  */
+    ELSE = 265,                    /* ELSE  */
+    WHILE = 266,                   /* WHILE  */
+    FOR = 267,                     /* FOR  */
+    EQ = 268,                      /* EQ  */
+    NEQ = 269,                     /* NEQ  */
+    GE = 270,                      /* GE  */
+    LE = 271,                      /* LE  */
+    GT = 272,                      /* GT  */
+    LT = 273,                      /* LT  */
+    ASSIGN = 274,                  /* ASSIGN  */
+    PLUS = 275,                    /* PLUS  */
+    MINUS = 276,                   /* MINUS  */
+    MUL = 277,                     /* MUL  */
+    DIV = 278,                     /* DIV  */
+    LPAREN = 279,                  /* LPAREN  */
+    RPAREN = 280,                  /* RPAREN  */
+    LBRACE = 281,                  /* LBRACE  */
+    RBRACE = 282,                  /* RBRACE  */
+    SEMICOLON = 283,               /* SEMICOLON  */
+    LBRACKET = 284,                /* LBRACKET  */
+    RBRACKET = 285                 /* RBRACKET  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -87,14 +122,14 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 24 "stylaxx.y"
+#line 43 "stylaxx.y"
 
     int intVal;
     double floatVal;
     char *strVal;
-    Data dataVal;   // Uses Data defined above
+    Node *nodePtr;
 
-#line 98 "stylaxx.tab.h"
+#line 133 "stylaxx.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
