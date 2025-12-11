@@ -1,10 +1,3 @@
-অবশ্যই\! গিটহাবে (GitHub) প্রজেক্ট আপলোড করার জন্য একটি প্রফেশনাল এবং সুন্দর `README.md` ফাইল নিচে তৈরি করে দিলাম।
-
-এটি কপি করে আপনার প্রজেক্ট ফোল্ডারে `README.md` নামে একটি ফাইল তৈরি করে পেস্ট করে দিন।
-
------
-
-````markdown
 # Stylaxx Compiler 🚀
 
 **Stylaxx** is a custom programming language built from scratch using **C**, **Flex** (Lexical Analyzer), and **Bison** (Parser Generator). It features a unique syntax inspired by Bengali phonetic words (Banglish) and supports advanced mathematical operations, control flow, loops, and arrays.
@@ -111,7 +104,3 @@ dekhao(result);
 
 Developed by **ABDULLAH - AL JIAD** CSE Student | Compiler Design Project
 
-```
-
----
-```
