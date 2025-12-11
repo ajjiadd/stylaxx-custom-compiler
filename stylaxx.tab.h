@@ -44,6 +44,17 @@
 #if YYDEBUG
 extern int yydebug;
 #endif
+/* "%code requires" blocks.  */
+#line 14 "stylaxx.y"
+
+    typedef struct {
+        int type;       // 0=INT, 1=FLOAT, 2=STRING
+        int i_val;
+        double f_val;
+        char *s_val;
+    } Data;
+
+#line 58 "stylaxx.tab.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -54,25 +65,39 @@ extern int yydebug;
     YYEOF = 0,                     /* "end of file"  */
     YYerror = 256,                 /* error  */
     YYUNDEF = 257,                 /* "invalid token"  */
-    NUMBER = 258,                  /* NUMBER  */
-    DEKHAO = 259,                  /* DEKHAO  */
-    DHORI = 260,                   /* DHORI  */
+    INT_NUM = 258,                 /* INT_NUM  */
+    FLOAT_NUM = 259,               /* FLOAT_NUM  */
+    STRING_LIT = 260,              /* STRING_LIT  */
     VARIABLE = 261,                /* VARIABLE  */
-    ASSIGN = 262,                  /* ASSIGN  */
-    PLUS = 263,                    /* PLUS  */
-    MINUS = 264,                   /* MINUS  */
-    MUL = 265,                     /* MUL  */
-    DIV = 266,                     /* DIV  */
-    LPAREN = 267,                  /* LPAREN  */
-    RPAREN = 268,                  /* RPAREN  */
-    SEMICOLON = 269                /* SEMICOLON  */
+    DEKHAO = 262,                  /* DEKHAO  */
+    DHORI = 263,                   /* DHORI  */
+    ASSIGN = 264,                  /* ASSIGN  */
+    PLUS = 265,                    /* PLUS  */
+    MINUS = 266,                   /* MINUS  */
+    MUL = 267,                     /* MUL  */
+    DIV = 268,                     /* DIV  */
+    LPAREN = 269,                  /* LPAREN  */
+    RPAREN = 270,                  /* RPAREN  */
+    SEMICOLON = 271                /* SEMICOLON  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef int YYSTYPE;
+union YYSTYPE
+{
+#line 24 "stylaxx.y"
+
+    int intVal;
+    double floatVal;
+    char *strVal;
+    Data dataVal;   // Uses Data defined above
+
+#line 98 "stylaxx.tab.h"
+
+};
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif

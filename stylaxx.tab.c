@@ -71,13 +71,13 @@
 
     #include <stdio.h>
     #include <stdlib.h>
+    #include <string.h>
 
+    // Forward declarations needed for C compiler
     int yylex();
     void yyerror(const char *s);
     extern FILE *yyin;
     extern char *yytext;
-
-    int sym[26]; 
 
 #line 83 "stylaxx.tab.c"
 
@@ -110,26 +110,103 @@ enum yysymbol_kind_t
   YYSYMBOL_YYEOF = 0,                      /* "end of file"  */
   YYSYMBOL_YYerror = 1,                    /* error  */
   YYSYMBOL_YYUNDEF = 2,                    /* "invalid token"  */
-  YYSYMBOL_NUMBER = 3,                     /* NUMBER  */
-  YYSYMBOL_DEKHAO = 4,                     /* DEKHAO  */
-  YYSYMBOL_DHORI = 5,                      /* DHORI  */
+  YYSYMBOL_INT_NUM = 3,                    /* INT_NUM  */
+  YYSYMBOL_FLOAT_NUM = 4,                  /* FLOAT_NUM  */
+  YYSYMBOL_STRING_LIT = 5,                 /* STRING_LIT  */
   YYSYMBOL_VARIABLE = 6,                   /* VARIABLE  */
-  YYSYMBOL_ASSIGN = 7,                     /* ASSIGN  */
-  YYSYMBOL_PLUS = 8,                       /* PLUS  */
-  YYSYMBOL_MINUS = 9,                      /* MINUS  */
-  YYSYMBOL_MUL = 10,                       /* MUL  */
-  YYSYMBOL_DIV = 11,                       /* DIV  */
-  YYSYMBOL_LPAREN = 12,                    /* LPAREN  */
-  YYSYMBOL_RPAREN = 13,                    /* RPAREN  */
-  YYSYMBOL_SEMICOLON = 14,                 /* SEMICOLON  */
-  YYSYMBOL_YYACCEPT = 15,                  /* $accept  */
-  YYSYMBOL_program = 16,                   /* program  */
-  YYSYMBOL_statement = 17,                 /* statement  */
-  YYSYMBOL_expression = 18                 /* expression  */
+  YYSYMBOL_DEKHAO = 7,                     /* DEKHAO  */
+  YYSYMBOL_DHORI = 8,                      /* DHORI  */
+  YYSYMBOL_ASSIGN = 9,                     /* ASSIGN  */
+  YYSYMBOL_PLUS = 10,                      /* PLUS  */
+  YYSYMBOL_MINUS = 11,                     /* MINUS  */
+  YYSYMBOL_MUL = 12,                       /* MUL  */
+  YYSYMBOL_DIV = 13,                       /* DIV  */
+  YYSYMBOL_LPAREN = 14,                    /* LPAREN  */
+  YYSYMBOL_RPAREN = 15,                    /* RPAREN  */
+  YYSYMBOL_SEMICOLON = 16,                 /* SEMICOLON  */
+  YYSYMBOL_YYACCEPT = 17,                  /* $accept  */
+  YYSYMBOL_program = 18,                   /* program  */
+  YYSYMBOL_statement = 19,                 /* statement  */
+  YYSYMBOL_expression = 20                 /* expression  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
 
+/* Second part of user prologue.  */
+#line 43 "stylaxx.y"
+
+    // Symbol Table
+    struct Symbol {
+        char *name;
+        Data data;
+    };
+
+    struct Symbol table[100];
+    int count = 0;
+
+    // Helper: Set Value
+    void set_value(char *name, Data d) {
+        for(int i=0; i<count; i++) {
+            if(strcmp(table[i].name, name) == 0) {
+                table[i].data = d;
+                return;
+            }
+        }
+        table[count].name = strdup(name);
+        table[count].data = d;
+        count++;
+    }
+
+    // Helper: Get Value
+    Data get_value(char *name) {
+        for(int i=0; i<count; i++) {
+            if(strcmp(table[i].name, name) == 0) {
+                return table[i].data;
+            }
+        }
+        printf("Error: Variable '%s' not found!\n", name);
+        Data empty = {0, 0, 0.0, NULL};
+        return empty;
+    }
+
+    // Helper: Calculate Logic
+    Data calculate(Data a, Data b, char op) {
+        Data res;
+        
+        // String handling restriction
+        if(a.type == 2 || b.type == 2) {
+            printf("Error: Cannot do math with strings!\n");
+            res.type = 0; res.i_val = 0; return res;
+        }
+
+        // Int vs Float Logic
+        if(a.type == 0 && b.type == 0) { // Both INT
+            res.type = 0;
+            if(op == '+') res.i_val = a.i_val + b.i_val;
+            if(op == '-') res.i_val = a.i_val - b.i_val;
+            if(op == '*') res.i_val = a.i_val * b.i_val;
+            if(op == '/') {
+                if(b.i_val == 0) { printf("Error: Div by 0\n"); res.i_val=0; }
+                else res.i_val = a.i_val / b.i_val;
+            }
+        }
+        else { // Mixed or Float
+            res.type = 1;
+            double v1 = (a.type == 0) ? (double)a.i_val : a.f_val;
+            double v2 = (b.type == 0) ? (double)b.i_val : b.f_val;
+
+            if(op == '+') res.f_val = v1 + v2;
+            if(op == '-') res.f_val = v1 - v2;
+            if(op == '*') res.f_val = v1 * v2;
+            if(op == '/') {
+                 if(v2 == 0) { printf("Error: Div by 0\n"); res.f_val=0; }
+                 else res.f_val = v1 / v2;
+            }
+        }
+        return res;
+    }
+
+#line 210 "stylaxx.tab.c"
 
 
 #ifdef short
@@ -453,19 +530,19 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   36
+#define YYLAST   40
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  15
+#define YYNTOKENS  17
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  4
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  12
+#define YYNRULES  14
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  27
+#define YYNSTATES  29
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   269
+#define YYMAXUTOK   271
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -505,15 +582,16 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
-       5,     6,     7,     8,     9,    10,    11,    12,    13,    14
+       5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
+      15,    16
 };
 
 #if YYDEBUG
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
-static const yytype_int8 yyrline[] =
+static const yytype_uint8 yyrline[] =
 {
-       0,    21,    21,    22,    26,    29,    35,    36,    39,    40,
-      41,    43,    47
+       0,   119,   119,   120,   124,   129,   135,   136,   137,   138,
+     140,   141,   142,   143,   145
 };
 #endif
 
@@ -529,9 +607,10 @@ static const char *yysymbol_name (yysymbol_kind_t yysymbol) YY_ATTRIBUTE_UNUSED;
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
 {
-  "\"end of file\"", "error", "\"invalid token\"", "NUMBER", "DEKHAO",
-  "DHORI", "VARIABLE", "ASSIGN", "PLUS", "MINUS", "MUL", "DIV", "LPAREN",
-  "RPAREN", "SEMICOLON", "$accept", "program", "statement", "expression", YY_NULLPTR
+  "\"end of file\"", "error", "\"invalid token\"", "INT_NUM", "FLOAT_NUM",
+  "STRING_LIT", "VARIABLE", "DEKHAO", "DHORI", "ASSIGN", "PLUS", "MINUS",
+  "MUL", "DIV", "LPAREN", "RPAREN", "SEMICOLON", "$accept", "program",
+  "statement", "expression", YY_NULLPTR
 };
 
 static const char *
@@ -541,7 +620,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-10)
+#define YYPACT_NINF (-11)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -555,9 +634,9 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-     -10,    31,   -10,    -8,    -1,   -10,    -3,     0,   -10,   -10,
-      -3,    13,    -3,    19,    -3,    -3,    -3,    -3,     4,     6,
-     -10,    -9,    -9,   -10,   -10,   -10,   -10
+     -11,     5,   -11,   -10,     3,   -11,    -3,    -1,   -11,   -11,
+     -11,   -11,    -3,    19,    -3,    25,    -3,    -3,    -3,    -3,
+       1,    12,   -11,    -6,    -6,   -11,   -11,   -11,   -11
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -566,20 +645,20 @@ static const yytype_int8 yypact[] =
 static const yytype_int8 yydefact[] =
 {
        2,     0,     1,     0,     0,     3,     0,     0,     6,     7,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-      12,     8,     9,    10,    11,     4,     5
+       8,     9,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,    14,    10,    11,    12,    13,     4,     5
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -10,   -10,   -10,    -4
+     -11,   -11,   -11,     2
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     1,     5,    11
+       0,     1,     5,    13
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -587,41 +666,43 @@ static const yytype_int8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-       8,    16,    17,     9,     6,     7,    13,    12,    19,    10,
-      21,    22,    23,    24,    14,    15,    16,    17,    25,     0,
-      26,    14,    15,    16,    17,     0,    18,    14,    15,    16,
-      17,     2,    20,     0,     0,     3,     4
+       8,     9,    10,    11,     6,     2,    18,    19,    14,     7,
+       0,    12,     3,     4,    15,     0,    21,    27,    23,    24,
+      25,    26,    16,    17,    18,    19,     0,     0,    28,    16,
+      17,    18,    19,     0,    20,    16,    17,    18,    19,     0,
+      22
 };
 
 static const yytype_int8 yycheck[] =
 {
-       3,    10,    11,     6,    12,     6,    10,     7,    12,    12,
-      14,    15,    16,    17,     8,     9,    10,    11,    14,    -1,
-      14,     8,     9,    10,    11,    -1,    13,     8,     9,    10,
-      11,     0,    13,    -1,    -1,     4,     5
+       3,     4,     5,     6,    14,     0,    12,    13,     9,     6,
+      -1,    14,     7,     8,    12,    -1,    14,    16,    16,    17,
+      18,    19,    10,    11,    12,    13,    -1,    -1,    16,    10,
+      11,    12,    13,    -1,    15,    10,    11,    12,    13,    -1,
+      15
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
    state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,    16,     0,     4,     5,    17,    12,     6,     3,     6,
-      12,    18,     7,    18,     8,     9,    10,    11,    13,    18,
-      13,    18,    18,    18,    18,    14,    14
+       0,    18,     0,     7,     8,    19,    14,     6,     3,     4,
+       5,     6,    14,    20,     9,    20,    10,    11,    12,    13,
+      15,    20,    15,    20,    20,    20,    20,    16,    16
 };
 
 /* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    15,    16,    16,    17,    17,    18,    18,    18,    18,
-      18,    18,    18
+       0,    17,    18,    18,    19,    19,    20,    20,    20,    20,
+      20,    20,    20,    20,    20
 };
 
 /* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     0,     2,     5,     5,     1,     1,     3,     3,
-       3,     3,     3
+       0,     2,     0,     2,     5,     5,     1,     1,     1,     1,
+       3,     3,     3,     3,     3
 };
 
 
@@ -1085,68 +1166,79 @@ yyreduce:
   switch (yyn)
     {
   case 4: /* statement: DEKHAO LPAREN expression RPAREN SEMICOLON  */
-#line 26 "stylaxx.y"
+#line 124 "stylaxx.y"
                                               {
-        printf("Output: %d\n", yyvsp[-2]);
+        if ((yyvsp[-2].dataVal).type == 0) printf("Output (Int): %d\n", (yyvsp[-2].dataVal).i_val);
+        else if ((yyvsp[-2].dataVal).type == 1) printf("Output (Float): %.2f\n", (yyvsp[-2].dataVal).f_val);
+        else if ((yyvsp[-2].dataVal).type == 2) printf("Output (Text): %s\n", (yyvsp[-2].dataVal).s_val);
     }
-#line 1093 "stylaxx.tab.c"
+#line 1176 "stylaxx.tab.c"
     break;
 
   case 5: /* statement: DHORI VARIABLE ASSIGN expression SEMICOLON  */
-#line 29 "stylaxx.y"
+#line 129 "stylaxx.y"
                                                  {
-        sym[yyvsp[-3]] = yyvsp[-1]; 
+        set_value((yyvsp[-3].strVal), (yyvsp[-1].dataVal));
     }
-#line 1101 "stylaxx.tab.c"
+#line 1184 "stylaxx.tab.c"
     break;
 
-  case 6: /* expression: NUMBER  */
-#line 35 "stylaxx.y"
-                            { yyval = yyvsp[0]; }
-#line 1107 "stylaxx.tab.c"
+  case 6: /* expression: INT_NUM  */
+#line 135 "stylaxx.y"
+                            { (yyval.dataVal).type = 0; (yyval.dataVal).i_val = (yyvsp[0].intVal); }
+#line 1190 "stylaxx.tab.c"
     break;
 
-  case 7: /* expression: VARIABLE  */
-#line 36 "stylaxx.y"
-                            { yyval = sym[yyvsp[0]]; }
-#line 1113 "stylaxx.tab.c"
+  case 7: /* expression: FLOAT_NUM  */
+#line 136 "stylaxx.y"
+                            { (yyval.dataVal).type = 1; (yyval.dataVal).f_val = (yyvsp[0].floatVal); }
+#line 1196 "stylaxx.tab.c"
     break;
 
-  case 8: /* expression: expression PLUS expression  */
-#line 39 "stylaxx.y"
-                                  { yyval = yyvsp[-2] + yyvsp[0]; }
-#line 1119 "stylaxx.tab.c"
+  case 8: /* expression: STRING_LIT  */
+#line 137 "stylaxx.y"
+                            { (yyval.dataVal).type = 2; (yyval.dataVal).s_val = (yyvsp[0].strVal); }
+#line 1202 "stylaxx.tab.c"
     break;
 
-  case 9: /* expression: expression MINUS expression  */
-#line 40 "stylaxx.y"
-                                  { yyval = yyvsp[-2] - yyvsp[0]; }
-#line 1125 "stylaxx.tab.c"
+  case 9: /* expression: VARIABLE  */
+#line 138 "stylaxx.y"
+                            { (yyval.dataVal) = get_value((yyvsp[0].strVal)); }
+#line 1208 "stylaxx.tab.c"
     break;
 
-  case 10: /* expression: expression MUL expression  */
-#line 41 "stylaxx.y"
-                                  { yyval = yyvsp[-2] * yyvsp[0]; }
-#line 1131 "stylaxx.tab.c"
+  case 10: /* expression: expression PLUS expression  */
+#line 140 "stylaxx.y"
+                                  { (yyval.dataVal) = calculate((yyvsp[-2].dataVal), (yyvsp[0].dataVal), '+'); }
+#line 1214 "stylaxx.tab.c"
     break;
 
-  case 11: /* expression: expression DIV expression  */
-#line 43 "stylaxx.y"
-                                  { 
-        if(yyvsp[0] == 0) { yyerror("Divide by zero!"); yyval = 0; }
-        else yyval = yyvsp[-2] / yyvsp[0]; 
-    }
-#line 1140 "stylaxx.tab.c"
+  case 11: /* expression: expression MINUS expression  */
+#line 141 "stylaxx.y"
+                                  { (yyval.dataVal) = calculate((yyvsp[-2].dataVal), (yyvsp[0].dataVal), '-'); }
+#line 1220 "stylaxx.tab.c"
     break;
 
-  case 12: /* expression: LPAREN expression RPAREN  */
-#line 47 "stylaxx.y"
-                                  { yyval = yyvsp[-1]; }
-#line 1146 "stylaxx.tab.c"
+  case 12: /* expression: expression MUL expression  */
+#line 142 "stylaxx.y"
+                                  { (yyval.dataVal) = calculate((yyvsp[-2].dataVal), (yyvsp[0].dataVal), '*'); }
+#line 1226 "stylaxx.tab.c"
+    break;
+
+  case 13: /* expression: expression DIV expression  */
+#line 143 "stylaxx.y"
+                                  { (yyval.dataVal) = calculate((yyvsp[-2].dataVal), (yyvsp[0].dataVal), '/'); }
+#line 1232 "stylaxx.tab.c"
+    break;
+
+  case 14: /* expression: LPAREN expression RPAREN  */
+#line 145 "stylaxx.y"
+                                  { (yyval.dataVal) = (yyvsp[-1].dataVal); }
+#line 1238 "stylaxx.tab.c"
     break;
 
 
-#line 1150 "stylaxx.tab.c"
+#line 1242 "stylaxx.tab.c"
 
       default: break;
     }
@@ -1339,9 +1431,10 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 50 "stylaxx.y"
+#line 148 "stylaxx.y"
 
 
+/* --- PART 6: Main Function --- */
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         printf("Usage: %s <filename.laxx>\n", argv[0]);
@@ -1353,9 +1446,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     yyin = myfile;
-    
-    for(int i=0; i<26; i++) sym[i] = 0;
-
     yyparse();
     fclose(myfile);
     return 0;

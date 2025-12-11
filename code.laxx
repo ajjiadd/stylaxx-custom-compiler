@@ -1,6 +1,26 @@
-dhori x = 10;
-dhori y = 20;
-dekhao(x + y);
-dekhao(y - 5);
-dhori z = x * y;
-dekhao(z);
+dhori a = 10;
+dhori b = 5.5;
+dhori text = "Hello Stylaxx";
+
+dekhao(a);
+dekhao(b);
+dekhao(text);
+
+dhori jogfol = a + b;
+dekhao(jogfol);
+
+dhori gunfol = b * 2;
+
+dekhao(gunfol);
+
+dhori x = 100;
+dhori y = 2;
+
+dhori vagfol = x / y;
+dekhao(vagfol);
+
+dhori a = 10;
+dhori b = 5.5;
+dhori txt = "Hello World";
+dekhao(a + b);
+dekhao(txt);
