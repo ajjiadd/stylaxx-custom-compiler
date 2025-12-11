@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 13 "stylaxx.y"
+#line 14 "stylaxx.y"
 
     typedef struct {
         int type;       // 0=INT, 1=FLOAT, 2=STRING
@@ -59,8 +59,9 @@ extern int yydebug;
 
     typedef enum { 
         NODE_CONST, NODE_VAR, NODE_OP, NODE_ASSIGN, 
-        NODE_IF, NODE_WHILE, NODE_FOR, NODE_SEQ, NODE_PRINT,
-        NODE_ARRAY_DECL, NODE_ARRAY_ASSIGN, NODE_ARRAY_ACCESS
+        NODE_IF, NODE_WHILE, NODE_FOR, NODE_SEQ, NODE_PRINT, NODE_INPUT,
+        NODE_ARRAY_DECL, NODE_ARRAY_ASSIGN, NODE_ARRAY_ACCESS,
+        NODE_MATH_FUNC
     } NodeType;
 
     typedef struct Node {
@@ -68,14 +69,15 @@ extern int yydebug;
         Data value;             
         char *varName;          
         char op;                
-        struct Node *left;      // Used for Init in For Loop
-        struct Node *right;     // Used for Increment in For Loop
-        struct Node *cond;      // Condition
-        struct Node *body;      // Body
+        int mathFuncType;       
+        struct Node *left;      
+        struct Node *right;     
+        struct Node *cond;      
+        struct Node *body;      
         struct Node *elseBody;  
     } Node;
 
-#line 79 "stylaxx.tab.h"
+#line 81 "stylaxx.tab.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -96,24 +98,35 @@ extern int yydebug;
     ELSE = 265,                    /* ELSE  */
     WHILE = 266,                   /* WHILE  */
     FOR = 267,                     /* FOR  */
-    EQ = 268,                      /* EQ  */
-    NEQ = 269,                     /* NEQ  */
-    GE = 270,                      /* GE  */
-    LE = 271,                      /* LE  */
-    GT = 272,                      /* GT  */
-    LT = 273,                      /* LT  */
-    ASSIGN = 274,                  /* ASSIGN  */
-    PLUS = 275,                    /* PLUS  */
-    MINUS = 276,                   /* MINUS  */
-    MUL = 277,                     /* MUL  */
-    DIV = 278,                     /* DIV  */
-    LPAREN = 279,                  /* LPAREN  */
-    RPAREN = 280,                  /* RPAREN  */
-    LBRACE = 281,                  /* LBRACE  */
-    RBRACE = 282,                  /* RBRACE  */
-    SEMICOLON = 283,               /* SEMICOLON  */
-    LBRACKET = 284,                /* LBRACKET  */
-    RBRACKET = 285                 /* RBRACKET  */
+    INPUT = 268,                   /* INPUT  */
+    POW = 269,                     /* POW  */
+    ROOT = 270,                    /* ROOT  */
+    SIN = 271,                     /* SIN  */
+    COS = 272,                     /* COS  */
+    TAN = 273,                     /* TAN  */
+    ABS = 274,                     /* ABS  */
+    AND = 275,                     /* AND  */
+    OR = 276,                      /* OR  */
+    EQ = 277,                      /* EQ  */
+    NEQ = 278,                     /* NEQ  */
+    GE = 279,                      /* GE  */
+    LE = 280,                      /* LE  */
+    GT = 281,                      /* GT  */
+    LT = 282,                      /* LT  */
+    ASSIGN = 283,                  /* ASSIGN  */
+    PLUS = 284,                    /* PLUS  */
+    MINUS = 285,                   /* MINUS  */
+    MUL = 286,                     /* MUL  */
+    DIV = 287,                     /* DIV  */
+    MOD = 288,                     /* MOD  */
+    LPAREN = 289,                  /* LPAREN  */
+    RPAREN = 290,                  /* RPAREN  */
+    LBRACE = 291,                  /* LBRACE  */
+    RBRACE = 292,                  /* RBRACE  */
+    SEMICOLON = 293,               /* SEMICOLON  */
+    LBRACKET = 294,                /* LBRACKET  */
+    RBRACKET = 295,                /* RBRACKET  */
+    COMMA = 296                    /* COMMA  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -122,14 +135,14 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 43 "stylaxx.y"
+#line 46 "stylaxx.y"
 
     int intVal;
     double floatVal;
     char *strVal;
     Node *nodePtr;
 
-#line 133 "stylaxx.tab.h"
+#line 146 "stylaxx.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

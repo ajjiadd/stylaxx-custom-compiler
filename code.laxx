@@ -1,60 +1,146 @@
+// ==========================================
+// STYLAXX TEST PROGRAM
+// This file tests Variables, Loops, Logic, and Math
+// ==========================================
+
+// --- SECTION 1: BASIC VARIABLES ---
+dekhao("===============================");
+dekhao("      1. BASIC VARIABLE TEST    ");
+dekhao("===============================");
+
 dhori a = 10;
 dhori b = 5.5;
 dhori text = "Hello Stylaxx";
 
+dekhao("Integer Value (a):");
 dekhao(a);
+
+dekhao("Float Value (b):");
 dekhao(b);
+
+dekhao("String Value:");
 dekhao(text);
 
+// --- SECTION 2: ARITHMETIC OPERATIONS ---
+dekhao("-------------------------------");
+dekhao("      2. ARITHMETIC TEST        ");
+dekhao("-------------------------------");
+
+// Addition
 dhori jogfol = a + b;
+dekhao("Sum of (a + b):");
 dekhao(jogfol);
 
+// Multiplication
 dhori gunfol = b * 2;
-
+dekhao("Multiplication (b * 2):");
 dekhao(gunfol);
 
+// Division
 dhori x = 100;
 dhori y = 2;
-
 dhori vagfol = x / y;
+dekhao("Division (100 / 2):");
 dekhao(vagfol);
 
-dhori a = 10;
-dhori b = 5.5;
-dhori txt = "Hello World";
-dekhao(a + b);
-dekhao(txt);
-
-dhori bar = "----------------------------------";
-dekhao(bar);
+// --- SECTION 3: LOGIC (IF-ELSE) ---
+dekhao("-------------------------------");
+dekhao("      3. IF-ELSE LOGIC TEST     ");
+dekhao("-------------------------------");
 
 dhori p = 10;
 dhori q = 20;
 
+dekhao("Comparing p=10 and q=20:");
+
 jodi (p < q) {
-    dekhao("P is smaller than Q");
+    dekhao("Result: P is smaller than Q");
 } nahole {
-    dekhao("Q is bigger");
+    dekhao("Result: Q is bigger");
 }
 
+// --- SECTION 4: LOOPS (WHILE & ARRAY) ---
+dekhao("-------------------------------");
+dekhao("      4. LOOP & ARRAY TEST      ");
+dekhao("-------------------------------");
+
+dekhao("--- While Loop (0 to 2) ---");
 dhori i = 0;
 jotokhon (i < 3) {
     dekhao(i);
     dhori i = i + 1;
 }
 
+dekhao("--- Array Operations ---");
 dhori myArray[5];
 myArray[0] = 100;
 myArray[1] = 200;
 
 dhori val = myArray[0] + myArray[1];
-dekhao("Array Sum:");
+dekhao("Sum of myArray[0] + myArray[1]:");
 dekhao(val);
 
-dekhao("--- For Loop Test ---");
+// --- SECTION 5: FOR LOOP ---
+dekhao("-------------------------------");
+dekhao("      5. FOR LOOP TEST          ");
+dekhao("-------------------------------");
 
-ghuro (dhori i = 1; i < 6; i = i + 1;) {
-    dekhao(i);
+dekhao("Counting 1 to 5:");
+ghuro (dhori k = 1; k < 6; k = k + 1;) {
+    dekhao(k);
 }
 
-dekhao("--- Done ---");
+// --- SECTION 6: ADVANCED MATH ---
+dekhao("-------------------------------");
+dekhao("      6. MATH LIBRARY TEST      ");
+dekhao("-------------------------------");
+
+// Power Test
+dhori power = pow(2, 3);
+dekhao("Power of 2^3:");
+dekhao(power);
+
+// Square Root Test
+dhori rootVal = root(16);
+dekhao("Square Root of 16:");
+dekhao(rootVal);
+
+// Sine Test
+dhori sineVal = sin(90);
+dekhao("Sin(90) Degree:");
+dekhao(sineVal);
+
+// --- SECTION 7: USER INPUT & LOGIC ---
+dekhao("===============================");
+dekhao("   7. USER INPUT & VALIDATION   ");
+dekhao("===============================");
+
+dekhao("Enter a number (Try between 5 and 20):");
+// Input neya hocche
+dhori userVal = nio(); 
+
+dekhao("You entered:");
+dekhao(userVal);
+
+// Checking range with Logical AND (&&)
+jodi (userVal > 5 && userVal < 20) {
+    dekhao("Status: Input is Valid (Between 5-20)");
+} nahole {
+    dekhao("Status: Input is Out of Range!");
+}
+
+// --- SECTION 8: MODULUS & LOOPS ---
+dekhao("-------------------------------");
+dekhao("   8. EVEN NUMBERS (0-10)       ");
+dekhao("-------------------------------");
+
+// Printing even numbers using Modulus (%)
+ghuro(dhori num=0; num<=10; num=num+1;) {
+    jodi (num % 2 == 0) {
+        dekhao(num);
+    }
+}
+
+dekhao("===============================");
+dekhao("      PROGRAM FINISHED          ");
+dekhao("===============================");

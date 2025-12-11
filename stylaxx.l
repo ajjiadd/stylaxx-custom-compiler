@@ -8,12 +8,23 @@
 
 %%
 
+\/\/.* { /* Single line comment ignore koro */ }
+
 "dekhao"    { return DEKHAO; }
 "dhori"     { return DHORI; }
+"nio"       { return INPUT; }
+
 "jodi"      { return IF; }
 "nahole"    { return ELSE; }
 "jotokhon"  { return WHILE; }
 "ghuro"     { return FOR; }
+
+"pow"       { return POW; }
+"root"      { return ROOT; }
+"sin"       { return SIN; }
+"cos"       { return COS; }
+"tan"       { return TAN; }
+"abs"       { return ABS; }
 
 [a-zA-Z][a-zA-Z0-9]* { 
                 yylval.strVal = strdup(yytext); 
@@ -30,6 +41,8 @@
                 return STRING_LIT; 
             }
 
+"&&"        { return AND; }
+"||"        { return OR; }
 "=="        { return EQ; }
 "!="        { return NEQ; }
 ">="        { return GE; }
@@ -42,6 +55,7 @@
 "-"         { return MINUS; }
 "*"         { return MUL; }
 "/"         { return DIV; }
+"%"         { return MOD; }
 
 "("         { return LPAREN; }
 ")"         { return RPAREN; }
@@ -50,8 +64,9 @@
 "["         { return LBRACKET; }
 "]"         { return RBRACKET; }
 ";"         { return SEMICOLON; }
+","         { return COMMA; }
 
 [ \t\n\r]   { /* Ignore whitespace */ }
-.           { printf("Unknown: %s\n", yytext); }
+.           { printf("Unknown character: %s\n", yytext); }
 
 %%
